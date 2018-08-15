@@ -1031,7 +1031,7 @@ function $HttpProvider() {
 </file>
 </example>
      */
-    function $http(requestConfig) {
+    function $http(requestConfig, invokeApply) {
 
       if (!isObject(requestConfig)) {
         throw minErr('$http')('badreq', 'Http request configuration must be an object.  Received: {0}', requestConfig);
@@ -1155,7 +1155,7 @@ function $HttpProvider() {
         }
 
         // send request
-        return sendReq(config, reqData).then(transformResponse, transformResponse);
+        return sendReq(config, reqData, invokeApply).then(transformResponse, transformResponse);
       }
 
       function transformResponse(response) {
@@ -1318,7 +1318,7 @@ function $HttpProvider() {
 
     function createShortMethods(names) {
       forEach(arguments, function(name) {
-        $http[name] = function(url, config) {
+          $http[name] = function(url, config, invokeApply) {
           return $http(extend({}, config || {}, {
             method: name,
             url: url
@@ -1330,7 +1330,7 @@ function $HttpProvider() {
 
     function createShortMethodsWithData(name) {
       forEach(arguments, function(name) {
-        $http[name] = function(url, data, config) {
+          $http[name] = function(url, data, config, invokeApply) {
           return $http(extend({}, config || {}, {
             method: name,
             url: url,
@@ -1347,7 +1347,7 @@ function $HttpProvider() {
      * !!! ACCESSES CLOSURE VARS:
      * $httpBackend, defaults, $log, $rootScope, defaultCache, $http.pendingRequests
      */
-    function sendReq(config, reqData) {
+    function sendReq(config, reqData, invokeApply) {
       var deferred = $q.defer(),
           promise = deferred.promise,
           cache,
@@ -1465,11 +1465,16 @@ function $HttpProvider() {
           resolvePromise(response, status, headersString, statusText, xhrStatus);
         }
 
-        if (useApplyAsync) {
-          $rootScope.$applyAsync(resolveHttpPromise);
+        var skipApply = (isDefined(invokeApply) && !invokeApply);
+        if (!skipApply) {
+          if (useApplyAsync) {
+            $rootScope.$applyAsync(resolveHttpPromise);
+          } else {
+            resolveHttpPromise();
+            if (!$rootScope.$$phase) $rootScope.$apply();
+          }
         } else {
           resolveHttpPromise();
-          if (!$rootScope.$$phase) $rootScope.$apply();
         }
       }
 

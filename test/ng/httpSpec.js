@@ -1017,6 +1017,7 @@ describe('$http', function() {
 
     describe('callbacks', function() {
 
+
       it('should $apply after success callback', function() {
         $httpBackend.when('GET').respond(200);
         $http({method: 'GET', url: '/some'});
@@ -1070,6 +1071,44 @@ describe('$http', function() {
         mockXHR.upload.$$events.progress(eventObj);
         expect(uploadProgressFn).toHaveBeenCalledOnceWith(eventObj);
         expect($rootScope.$digest).toHaveBeenCalledTimes(2);
+      });
+
+      it('should resolve promises anyway', function() {
+          $httpBackend.when('GET').respond(200);
+          var promiseCompleted = false;
+          $http({method: 'GET', url: '/some'}, false).then(function() {
+            promiseCompleted = true;
+          });
+          $httpBackend.flush();
+          expect(promiseCompleted).toBe(true);
+      });
+
+      describe('when invokeApply is defined and falsy', function() {
+          it('should not $apply after success callback', function() {
+              $httpBackend.when('GET').respond(200);
+              $http({method: 'GET', url: '/some'}, false);
+              $httpBackend.flush();
+              expect($rootScope.$apply).not.toHaveBeenCalledOnce();
+          });
+
+
+          it('should not $apply after error callback', function() {
+              $httpBackend.when('GET').respond(404);
+              $http({method: 'GET', url: '/some'}, false).catch(noop);
+              $httpBackend.flush();
+              expect($rootScope.$apply).not.toHaveBeenCalledOnce();
+          });
+
+          it('should not $apply if exception thrown during callback', inject(function($exceptionHandler) {
+              $httpBackend.when('GET').respond(200);
+              callback.and.throwError('error in callback');
+
+              $http({method: 'GET', url: '/some'}, false).then(callback);
+              $httpBackend.flush();
+              expect($rootScope.$apply).not.toHaveBeenCalledOnce();
+
+              $exceptionHandler.errors = [];
+          }));
       });
     });
 
